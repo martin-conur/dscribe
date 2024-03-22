@@ -1,0 +1,18 @@
+[package]
+name = "dscribe"
+version = "0.1.0"
+edition = "2021"
+authors = ["Martin Contreras Uribe <martincontrerasur@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Summary statistics from tabular files"
+homepage = "https://github.com/martin-conur/dscribe"
+repository = "https://github.com/martin-conur/dscribe"
+categories = ["command-line-utilities"]
+keywords = ["cli", "columnar", "csv", "files", "statistics"]
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.81"
+clap = { version = "4.5.3", features = ["derive"] }
