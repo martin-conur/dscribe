@@ -16,3 +16,10 @@ readme = "README.md"
 [dependencies]
 anyhow = "1.0.81"
 clap = { version = "4.5.3", features = ["derive"] }
+polars = { version = "0.38.3", features = ["describe"] }
+polars-core = "0.38.3"
+polars-io = "0.38.3"
+
+[dev-dependencies]
+assert_cmd = "2.0.14"
+predicates = "3.1.0"
