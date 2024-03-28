@@ -1,9 +1,18 @@
 #![allow(unused)]
+use std::path::PathBuf;
+
 use anyhow::{Error as E, Result};
 use clap::{Parser, Subcommand, ValueEnum};
+use csv::{Reader, StringRecord};
 use polars::prelude::*;
 use polars_core::prelude::*;
-use polars_io::prelude::*;
+use polars_io::{predicates::ColumnStats, prelude::*};
+
+fn read_csv_columns(path: &PathBuf) -> Result<StringRecord, csv::Error> {
+    let mut rdr = Reader::from_path(path)?;
+    let r = rdr.headers()?;
+    Ok(r.clone())
+}
 
 #[derive(Clone, Copy, ValueEnum, Debug)]
 enum Format {
@@ -35,6 +44,8 @@ enum Operation {
     NotNan,
     /// perform all above basic statistics
     BasicStatistics,
+    /// get columns names
+    Columns,
 }
 
 #[derive(Parser, Debug)]
@@ -60,24 +71,40 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let df: PolarsResult<DataFrame> = {
-        CsvReader::from_path(args.path)
-            .unwrap()
-            .has_header(true)
-            .finish()
-    };
+    let df = LazyCsvReader::new(&args.path)
+        .has_header(true)
+        .finish()
+        .unwrap();
 
     match args.operation {
         Operation::Head => {
-            println!("{:?}", df.unwrap().head(Some(5)));
+            println!("{:?}", df.collect().unwrap().head(Some(5)));
         }
         Operation::Mean => {
-            let df_mean = df.unwrap().lazy().select([col("*").mean()]).collect();
+            let df_mean = df.select([col("*").mean()]).collect().unwrap();
             println!("{:?}", df_mean)
         }
         Operation::Count => {
-            let df_count = df.unwrap().lazy().select([col("*").count()]).collect();
+            let df_count = df.select([col("*").count()]).collect().unwrap();
             println!("{:?}", df_count)
+        }
+        Operation::Columns => {
+            println!(
+                "{:?}",
+                read_csv_columns(&args.path).expect("error reading file")
+            );
+        }
+        Operation::Nan => {
+            let nans = df.select([col("*").is_null().sum()]).collect().unwrap();
+
+            println!("NaNs in file:");
+            println!("{:?}", nans)
+        }
+        Operation::NotNan => {
+            let not_nans = df.select([col("*").is_not_null().sum()]).collect().unwrap();
+
+            println!("Not NaNs in file:");
+            println!("{:?}", not_nans);
         }
         _ => todo!(),
     }

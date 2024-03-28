@@ -16,6 +16,7 @@ readme = "README.md"
 [dependencies]
 anyhow = "1.0.81"
 clap = { version = "4.5.3", features = ["derive"] }
+csv = "1.3.0"
 polars = { version = "0.38.3", features = ["describe", "lazy"] }
 polars-core = "0.38.3"
 polars-io = "0.38.3"
