@@ -16,6 +16,7 @@ readme = "README.md"
 [dependencies]
 anyhow = "1.0.81"
 arrow = "51.0.0"
+arrow-csv = "51.0.0"
 clap = { version = "4.5.3", features = ["derive"] }
 datafusion = "37.0.0"
 prettytable = "0.10.0"
