@@ -1,24 +1,12 @@
 #![allow(unused)]
 #[macro_use]
-extern crate prettytable;
-
 use std::path::PathBuf;
-
-use anyhow::{Error as E, Result};
 use clap::{Parser, Subcommand, ValueEnum};
-use csv::{Reader, StringRecord};
+use datafusion::datasource::file_format::file_compression_type::FileCompressionType;
+use datafusion::error::Result;
+use datafusion::prelude::*;
 
-use prettytable::{Cell, Row, Table};
-
-impl Args {
-    fn columns(&self) -> Result<StringRecord, csv::Error> {
-        let mut rdr = Reader::from_path(&self.path)?;
-        let r = rdr.headers()?.clone();
-        Ok(r)
-    }
-}
-
-#[derive(Clone, Copy, ValueEnum, Debug)]
+#[derive(Debug, Copy, Clone, ValueEnum)]
 enum Format {
     Csv,
     // TO DO: IMPLEMENT
@@ -27,16 +15,14 @@ enum Format {
     // Excel,
 }
 
-#[derive(Clone, Copy, ValueEnum, Debug)]
+#[derive(Subcommand, Debug)]
 enum Operation {
     /// show top 5 rows
     Head,
     /// show the summary of every column
     Summary,
-    ///
-    Nan,
-    /// counts the files not nans values
-    NotNan,
+    /// Use SQL to query the file
+    Query { query: String },
     /// get columns names
     Columns,
 }
@@ -49,18 +35,38 @@ struct Args {
     path: std::path::PathBuf,
 
     /// File's format
-    #[arg(long, short, value_enum, default_value_t=Format::Csv, global=true)]
+    #[arg(long, short, value_enum, global=true, default_value_t=Format::Csv)]
     format: Format,
 
     /// File delimiter, valid only for csv and txt formats
     #[arg(long, short, global=true, default_value_t=String::from(","))]
     delimiter: String,
 
+    /// Whether the file has header or not.
+    #[arg(long, default_value_t = true)]
+    header: bool,
+
     /// Type of operation to perform on the file's columns
-    #[arg(value_enum, default_value_t=Operation::Head)]
+    #[command(subcommand)]
     operation: Operation,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
+    println!("{:?}", args);
+
+    let ctx = SessionContext::new();
+    let options = CsvReadOptions::new()
+        .delimiter(args.delimiter.as_bytes()[0])
+        .has_header(args.header);
+
+    let df = ctx.read_csv(args.path.to_str().unwrap(), options).await?;
+
+    let result = df.collect().await?;
+
+    let pretty_results = arrow::util::pretty::pretty_format_batches(&result)?;
+
+    println!("{}", pretty_results);
+    Ok(())
 }
