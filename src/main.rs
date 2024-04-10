@@ -10,6 +10,8 @@ use datafusion::datasource::file_format::file_compression_type::FileCompressionT
 use datafusion::error::Result;
 use datafusion::prelude::*;
 
+use prettytable::{row, Cell, Row, Table};
+
 #[derive(Debug, Copy, Clone, ValueEnum)]
 enum Format {
     Csv,
@@ -64,6 +66,7 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     println!("{:?}", args);
 
+    // infer the schema based on the first 1000 rows
     let schema = arrow_csv::reader::infer_schema_from_files(
         &[args.path.to_str().unwrap().to_string()],
         args.delimiter.as_bytes()[0],
@@ -71,17 +74,29 @@ async fn main() -> Result<()> {
         args.header,
     )?;
 
+    // store column names for later print
+    let mut table = Table::new();
+    table.add_row(row!["Original name", "Query Name"]);
+
+    // change to lowercase the field names
     let mut fields = schema
         .fields()
         .iter()
         .map(|field| {
             let field_name = field.name().to_ascii_lowercase().replace(' ', "_");
+
+            // adding row pairs
+            table.add_row(Row::new(vec![
+                Cell::new(field.name()),
+                Cell::new(field_name.as_str()),
+            ]));
+
             let datatype = field.data_type();
             let nullable = field.is_nullable();
             Field::new(field_name, datatype.clone(), nullable)
         })
         .collect::<Vec<Field>>();
-
+    // define our new lowercased schema
     let schema = Arc::new(Schema::new(fields));
 
     let ctx = SessionContext::new();
@@ -102,8 +117,8 @@ async fn main() -> Result<()> {
         Operation::Summary => df.describe().await.unwrap(),
         Operation::Sql { query } => ctx.sql(&query).await?,
         Operation::Columns => {
-            println!("{}", df.schema());
-            todo!()
+            table.printstd();
+            std::process::exit(0)
         }
         _ => todo!(),
     };
